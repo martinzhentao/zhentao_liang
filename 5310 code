@@ -1,0 +1,606 @@
+import pandas as pd
+from sqlalchemy import create_engine
+
+df = pd.read_csv('amazon_co-ecommerce_sample.csv')
+
+df.head()
+
+df=df.drop(['uniq_id','sellers','number_of_answered_questions','description'],axis=1)
+
+df.info()
+
+df.product_name[df.product_name.duplicated()]
+
+df.drop_duplicates(subset=None, keep='first', inplace=True)
+
+df.insert(0, 'product_id', range(1, 1 + len(df)))
+df['price'] = df['price'].str.extractall('(\d+)').unstack().fillna('').sum(axis=1).astype(int)
+df['price'] = df['price'] * 0.01
+dfcate = pd.DataFrame(df, columns=['amazon_category_and_sub_category'])
+dfcate = dfcate.amazon_category_and_sub_category.str.split(pat='>',expand=True)
+dfcate.head()
+
+dfcateg = pd.DataFrame(dfcate, columns=[0])
+dfcateg.drop_duplicates(subset=None, keep='first', inplace=True)
+dfcateg.insert(0, 'category_id', range(1, 1 + len(dfcateg)))
+dfcateg = dfcateg.rename(columns={0:'category'})
+dfcateg.head()
+
+dfsubc = pd.DataFrame(dfcate, columns=[1])
+dfsubc.drop_duplicates(subset=None, keep='first', inplace=True)
+dfsubc.drop(labels=None, axis=0, index=71, columns=None, level=None, inplace=False, errors='raise')
+dfsubc.insert(0, 'subcategory_id', range(1, 1 + len(dfsubc)))
+dfsubc = dfsubc.rename(columns={1:'subcategory'})
+dfsubc.head()
+
+dfsubc1 = pd.DataFrame(dfcate, columns=[2])
+dfsubc1.drop_duplicates(subset=None, keep='first', inplace=True)
+dfsubc1.drop(labels=None, axis=0, index=71, columns=None, level=None, inplace=False, errors='raise')
+dfsubc1.insert(0, 'subcategory1_id', range(1, 1 + len(dfsubc1)))
+dfsubc1 = dfsubc1.rename(columns={2:'subcategory1'})
+dfsubc1.head()
+
+dfsubc2 = pd.DataFrame(dfcate, columns=[3])
+dfsubc2.drop_duplicates(subset=None, keep='first', inplace=True)
+dfsubc2.drop(labels=None, axis=0, index=71, columns=None, level=None, inplace=False, errors='raise')
+dfsubc2.insert(0, 'subcategory2_id', range(1, 1 + len(dfsubc2)))
+dfsubc2 = dfsubc2.rename(columns={3:'subcategory2'})
+dfsubc2.head()
+
+dfdes = pd.DataFrame(df, columns=['product_description'])
+dfdes.drop_duplicates(subset=None, keep='first', inplace=True)
+dfdes.insert(0, 'description_id', range(1, 1 + len(dfdes)))
+dfdes = dfdes.rename(columns={1:'product_description'})
+dfdes.head()
+
+dfinf = pd.DataFrame(df, columns=['product_information'])
+dfinf.drop_duplicates(subset=None, keep='first', inplace=True)
+dfinf.insert(0, 'information_id', range(1, 1 + len(dfinf)))
+dfinf = dfinf.rename(columns={1:'product_information'})
+dfinf.head()
+
+df['amazon_category_and_sub_category'] = df.amazon_category_and_sub_category.str.split(pat='>',expand=False)
+dfcate = dfcate.rename(columns={0:'category',1:'subcategory',2:'subcategory1',3:'subcategory2'})
+dfcate=dfcate.drop([4],axis=1)
+dfcate.head()
+
+df.drop(labels=None, axis=0, index=None, columns='amazon_category_and_sub_category', level=None, inplace=False, errors='raise')
+df.join(dfcate)
+
+dfstock = pd.DataFrame(df, columns=['number_available_in_stock'])
+dfstock = dfstock.fillna(0)
+dfstock = dfstock.number_available_in_stock.str.split(n=1,expand=True)
+dfstock.head()
+
+dfstocknum = pd.DataFrame(dfstock, columns=[0])
+dfstocknum = dfstocknum.fillna(0)
+dfstocknum =dfstocknum.rename(columns={0:'stocknumber'})
+dfstocknum.head()
+
+dfstocksta = pd.DataFrame(dfstock, columns=[1])
+dfstocksta = dfstocksta.fillna('None')
+dfstocksta = dfstocksta.rename(columns={1:'stockstatus'})
+dfstock = dfstocknum.join(dfstocksta)
+df = df.join(dfstock)
+df.head()
+
+df=df.drop(['number_available_in_stock','amazon_category_and_sub_category'],axis=1)
+df = df.join(dfcate)
+df.head()
+
+dfstocksta.drop_duplicates(subset=None, keep='first', inplace=True)
+dfstocksta.insert(0,'stockstatus_id', range(1, 1 + len(dfstocksta)))
+dfstocksta.head()
+
+#dfas = df.customers_who_bought_this_item_also_bought.str.split('|').apply(pd.Series, 1).stack()
+#dfas.index = dfas.index.droplevel(-1)
+#dfas.name = 'customers_who_bought_this_item_also_bought'
+#del df['customers_who_bought_this_item_also_bought']
+#df = df.join(dfas)
+#dfview = df.items_customers_buy_after_viewing_this_item.str.split('|').apply(pd.Series, 1).stack()
+#dfview.index = dfview.index.droplevel(-1)
+#dfview.name = 'items_customers_buy_after_viewing_this_item'
+#del df['items_customers_buy_after_viewing_this_item']
+#df = df.join(dfview)
+
+df = df.reset_index()
+
+df.drop(labels=None, axis=0, index=None, columns='index', level=None, inplace=False, errors='raise')
+
+dfmaf = pd.DataFrame(df, columns=['manufacturer'])
+dfmaf.drop_duplicates(subset=None, keep='first', inplace=True)
+dfmaf.insert(0, 'manufacturer_id', range(1, 1 + len(dfmaf)))
+dfmaf.head()
+
+temp1 = df
+temp2 = dfmaf
+temp1 = temp1.merge(temp2, on='manufacturer', how='left', indicator=False)
+
+temp1 = temp1.merge(dfcateg, on='category', how='left', indicator=False)
+temp1 = temp1.merge(dfdes, on='product_description', how='left', indicator=False)
+temp1 = temp1.merge(dfinf, on='product_information', how='left', indicator=False)
+temp1 = temp1.merge(dfstocksta, on='stockstatus', how='left', indicator=False)
+temp1=temp1.drop(['manufacturer','product_information','product_description','category','stockstatus','subcategory','subcategory1','subcategory2','index'],axis=1)
+
+temp1["number_of_reviews"] = pd.to_numeric(temp1["number_of_reviews"],errors='coerce')
+df['stocknumber'] = df['stocknumber'].str.extractall('(\d+)').unstack().fillna('').sum(axis=1).astype(int)
+temp1
+
+dfcate.insert(0, 'category_id(PK)', range(1, 1 + len(dfcate)))
+dfcate
+
+temp2 = dfcate
+temp2 = temp2.merge(dfsubc, on='subcategory', how='left', indicator=False)
+temp2 = temp2.merge(dfcateg, on='category', how='left', indicator=False)
+temp2 = temp2.drop(['category','subcategory','subcategory1','subcategory2','category_id(PK)'],axis =1)
+
+
+temp2 = temp2.rename({'category_id(PK)_y':'category_id(FK)','subcategory_id(PK)':'subcategory_id(FK)'},axis=1)
+temp2 = temp2.drop_duplicates()
+temp2
+
+temp3 = dfcate
+temp3 = temp3.drop(['category'],axis =1)
+temp3 = temp3.merge(dfsubc1, on='subcategory1', how='left', indicator=False)
+temp3 = temp3.merge(dfsubc, on='subcategory', how='left', indicator=False)
+temp3 = temp3.drop(['subcategory','subcategory1','subcategory2','category_id(PK)'],axis =1)
+temp3 = temp3.drop_duplicates()
+temp2 = temp2.rename({'subcategory_id(PK)':'subcategory_id(FK)','subcategory1_id(PK)':'subcategory1_id(FK)'},axis=1)
+temp3
+
+temp4 = dfcate
+temp4 = temp4.merge(dfsubc2, on='subcategory2', how='left', indicator=False)
+temp4 = temp4.merge(dfsubc1, on='subcategory1', how='left', indicator=False)
+temp4 = temp4.drop(['category','subcategory','subcategory1','subcategory2','category_id(PK)'],axis =1)
+temp4 = temp4.drop_duplicates()
+temp4 = temp4.rename({'subcategory1_id(PK)':'subcategory1_id(FK)','subcategory2_id(PK)':'subcategory2_id(FK)'},axis=1)
+temp4
+
+stmt = """
+    CREATE TABLE manufacturer (
+        manufacturer_id      integer,
+        manufacturer   varchar(100),
+        PRIMARY KEY (manufacturer_id)
+    
+    );
+    
+    CREATE TABLE category (
+        category_id      integer,
+        category   varchar(100) ,
+        PRIMARY KEY (category_id)
+    
+    );
+    
+    CREATE TABLE subcategory (
+        subcategory_id      integer,
+        subcategory   varchar(100),
+        PRIMARY KEY (subcategory_id)
+    
+    );
+    
+    CREATE TABLE subcategory1 (
+        subcategory1_id      integer,
+        subcategory1   varchar(100),
+        PRIMARY KEY (subcategory1_id)
+    
+    );
+    
+    CREATE TABLE subcategory2 (
+        subcategory2_id      integer,
+        subcategory2   varchar(100),
+        PRIMARY KEY (subcategory2_id)
+    
+    );
+    
+    CREATE TABLE product_description (
+        description_id      integer,
+        product_description   varchar(8000),
+        PRIMARY KEY (description_id)
+    
+    );
+    
+     CREATE TABLE product_information (
+        information_id      integer,
+        product_information   varchar(8000),
+        PRIMARY KEY (information_id)
+    
+    );
+    
+    CREATE TABLE stockstatus (
+        stockstatus_id      integer,
+        stockstatus   varchar(100),
+        PRIMARY KEY (stockstatus_id)
+    
+    );
+    
+    
+    CREATE TABLE category_subcategory (
+        category_id      integer,
+        subcategory_id      integer,
+        PRIMARY KEY (category_id,subcategory_id)
+    );
+    
+     
+    CREATE TABLE subcategory_subcategory1 (
+        subcategory_id     integer,
+        subcategory1_id      integer,
+        PRIMARY KEY (subcategory_id,subcategory1_id)
+    );
+    
+     
+    CREATE TABLE subcategory1_subcategory2 (
+        subcategory1_id      integer,
+        subcategory2_id      integer,
+        PRIMARY KEY (subcategory1_id,subcategory2_id)
+    );
+    
+   
+"""
+connection.execute(stmt)
+
+stmt = """
+    CREATE TABLE product (
+            product_id   integer,
+            product_name    varchar(5000) NOT NULL,
+            price     float,
+            number_of_reviews         integer,
+            average_review_rating    varchar(50),
+            customers_who_bought_this_item_also_bought    varchar(8000),
+            items_customers_buy_after_viewing_this_item     varchar(8000),
+            customer_questions_and_answers    varchar(8000),
+            customer_reviews    varchar(8000),
+            stocknumber   integer NOT NULL,
+            manufacturer_id    integer,
+            category_id    integer,
+            description_id    integer,
+            information_id    integer,
+            stockstatus_id    integer,
+            PRIMARY KEY (product_id,price),
+            FOREIGN KEY (manufacturer_id) REFERENCES manufacturer (manufacturer_id),
+            FOREIGN KEY (category_id) REFERENCES category (category_id),
+            FOREIGN KEY (description_id) REFERENCES product_description (description_id),
+            FOREIGN KEY (information_id) REFERENCES product_information (information_id)
+        
+    );
+
+"""  
+connection.execute(stmt)
+
+#Create table for the future use
+stmt = """ 
+    create table company(
+        name           varchar(255) not null
+            primary key,
+        department_sum int          not null,
+        employees_sum  int          not null,
+        constraint company_name_uindex
+            unique (name)
+    );
+
+    create table employees(
+            id            int 
+                primary key,
+            name          varchar(80) not null,
+            gender        varchar(10) not null,
+            phone_number  varchar(80) not null,
+            department_id int         not null,
+            salary        double precision      not null,
+            result_id     int         null,
+            constraint employees_id_uindex
+                unique (id),
+            constraint employees_department_id_fk
+                foreign key (department_id) references department (id)
+    );
+    create table up_department(
+        id          int    not null
+            primary key,
+        items_customers_buy_after_viewing_this_item               varchar(500) not null,
+        down_department_id int          null
+    );
+    create table department(
+        id               int 
+            primary key,
+        employees_sum    int         not null,
+        category         varchar(80) null,
+        leader_id        int         null,
+        up_department_id int         not null,
+        constraint department_id_uindex
+            unique (id),
+        constraint department_leader_id_fk
+            foreign key (leader_id) references leader (id),
+        constraint department_up_department_id_fk
+            foreign key (up_department_id) references up_department (id)
+    );
+
+
+
+"""
+
+connection.execute(stmt)
+
+ETL Process 
+dfmaf.to_sql(name='manufacturer', con=engine, if_exists='append', index=False)
+dfcateg.to_sql(name='category', con=engine, if_exists='append', index=False)
+dfsubc.to_sql(name='subcategory', con=engine, if_exists='append', index=False)
+dfsubc1.to_sql(name='subcategory1', con=engine, if_exists='append', index=False)
+dfsubc2.to_sql(name='subcategory2', con=engine, if_exists='append', index=False)
+dfinf.to_sql(name='product_information', con=engine, if_exists='append', index=False)
+dfstocksta.to_sql(name='stockstatus', con=engine, if_exists='append', index=False)
+
+#The length of the value exceed the maximum constraint(Varchar(5000))
+dfdes.to_sql(name='product_description', con=engine, if_exists='append', index=False)
+temp1.to_sql(name='product', con=engine, if_exists='append', index=False)
+
+#For the future data
+#employees.to_sql(name='employees', con=engine, if_exists='replace', index=False)
+#department.to_sql(name='department', con=engine, if_exists='replace', index=False)
+#up_department = df[['id','product_id','items_customers_buy_after_viewing_this_item']]
+#up_department.to_sql(name='up_department_df', con=engine, if_exists='replace', index=False)
+
+Reasoning
+We first looked at this dataset and found that it was in a file format that could be read directly in Python. So we performed a data inspection using the tool Jupyter Notebook. After a series of operations were performed, we would establish a connection to the SQL database in Python. Finally, we performed the ETL process to finalize the database.
+
+
+
+
+
+here is for the future dataset to to insert 
+
+
+
+
+
+
+
+df[['product_name', 'price']][df.product_name.isin(['Frozen', 'Wiking'])]
+
+category_df = df.category.str.split('>').apply(pd.Series, 1).stack
+
+category_df.index = category_df.index.droplevel(-1)
+
+category_df = category_df.join(category_df)
+df['price only'] = df['price'].str.extractall('(\d+)').unstack().fillna('').sum(axis=1).astype(int)
+df['price only'] 
+
+df1=df.groupby(by=["category"]).count()
+df1=df1.iloc[:,[0]]
+df=df.merge(df1, how='left', on='category')
+
+dfcate = dfcate.amazon_category_and_sub_category.str.split(pat='>',expand = True)
+
+conn_url = 'postgresql://postgres:123@localhost/postgres'
+engine = create_engine(conn_url)
+connection = engine.connect()
+stmt = """ 
+create table workshop
+(
+    id            int         not null
+        primary key,
+    number_of_reviews int     not null,
+    category      int         null,
+    name          varchar(80) null,
+    constraint workshop_id_uindex
+        unique (id)
+);
+create table product
+(
+    id           varchar(255) 
+        primary key,
+    inventory    double precision     not null,
+    category     varchar(80) null,
+    product_id varchar(255) not null,
+    price        double precision     not null,
+    work_shop_id int         not null,
+    constraint product_id_uindex
+        unique (id),
+    constraint product_workshop_id_fk
+        foreign key (work_shop_id) references workshop (id)
+);
+create table cart
+(
+    id         int not null
+        primary key,
+    product_id varchar(255) not null,
+    constraint cart_product_id_fk
+        foreign key (product_id) references product (id)
+);
+
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table company
+(
+    name           varchar(255) not null
+        primary key,
+    department_sum int          not null,
+    employees_sum  int          not null,
+    constraint company_name_uindex
+        unique (name)
+);
+
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table leader
+(
+    id           int 
+        primary key,
+    name         varchar(100) null,
+    gender       int          not null,
+    phone_number varchar(100) not null,
+    constraint leader_id_uindex
+        unique (id)
+);
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table up_department
+(
+    id                 int          not null
+        primary key,
+    items_customers_buy_after_viewing_this_item               varchar(500) not null,
+    down_department_id int          null
+);
+create table department
+(
+    id               int 
+        primary key,
+    employees_sum    int         not null,
+    category         varchar(80) null,
+    leader_id        int         null,
+    up_department_id int         not null,
+    constraint department_id_uindex
+        unique (id),
+    constraint department_leader_id_fk
+        foreign key (leader_id) references leader (id),
+    constraint department_up_department_id_fk
+        foreign key (up_department_id) references up_department (id)
+);
+
+
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table result_data
+(
+    id               int      not null
+        primary key,
+    year             timestamp not null,
+    sell_price_price double precision  not null
+);
+create table result_employee
+(
+    id          int null,
+    employee_id int not null,
+    constraint result_employee_employee_id_uindex
+        unique (employee_id),
+    constraint result_employee_result_data_id_fk
+        foreign key (id) references result_data (id)
+);
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table employees
+(
+    id            int 
+        primary key,
+    name          varchar(80) not null,
+    gender        varchar(10) not null,
+    phone_number  varchar(80) not null,
+    department_id int         not null,
+    salary        double precision      not null,
+    result_id     int         null,
+    constraint employees_id_uindex
+        unique (id),
+    constraint employees_department_id_fk
+        foreign key (department_id) references department (id)
+);
+"""
+
+connection.execute(stmt)
+stmt = """ 
+create table order_product
+(
+    id         int not null
+        primary key,
+    product_id varchar(255) not null,
+    constraint order_product_order_date_id_fk
+        foreign key (product_id) references product (id)
+);
+
+"""
+
+connection.execute(stmt)
+stmt = """
+create table personnel_transfer
+(
+    employee_id          int not null,
+    department_before_id int not null,
+    department_after_id  int not null
+);
+"""
+
+# Execute the statement to create tables
+connection.execute(stmt)
+stmt = """
+create table product_batch
+(
+    id                 int  not null
+        primary key,
+    product_id         varchar(255)  null,
+    date_of_production date null,
+    constraint product_batch_id_uindex
+        unique (id),
+    constraint product_batch_product_id_fk
+        foreign key (product_id) references product (id)
+);
+"""
+
+connection.execute(stmt)
+stmt = """
+create table user1
+(
+    id           int 
+        primary key,
+    customers_who_bought_this_item_also_bought         varchar(500)         null,
+    phone_number varchar(80) null,
+    constraint user_id_uindex
+        unique (id)
+);
+"""
+
+# Execute the statement to create tables
+connection.execute(stmt)
+stmt = """
+create table order_date
+(
+    id       int         not null
+        primary key,
+    date     date        null,
+    cost     double precision     null,
+    seller varchar(80) null,
+    constraint order_date_order_product_id_fk
+        foreign key (id) references order_product (id)
+);
+"""
+
+# Execute the statement to create tables
+connection.execute(stmt)
+df.head()
+df.insert(0, 'id', range(1, 1 + len(df)))
+df.head()
+cart = df[['id', 'product_id']]
+cart.head()
+cart.to_sql(name='cart', con=engine, if_exists='append', index=False)
+product = df[['id', 'inventory','category','product_id','price']]
+product.to_sql(name='product', con=engine, if_exists='replace', index=False)
+department = df[['id', 'category']]
+department.to_sql(name='department', con=engine, if_exists='replace', index=False)
+employees = df[['id']]
+employees.to_sql(name='employees', con=engine, if_exists='replace', index=False)
+leader = df[['id']]
+leader.to_sql(name='leader', con=engine, if_exists='replace', index=False)
+order_date = df[['id', 'sellers']]
+order_date.to_sql(name='order_date', con=engine, if_exists='replace', index=False)
+order_product = df[['id', 'product_id']]
+order_product.to_sql(name='order_product', con=engine, if_exists='replace', index=False)
+product = df[['id','inventory','category','price']]
+product.to_sql(name='product_df', con=engine, if_exists='replace', index=False)
+product_batch = df[['id','product_id','number_of_reviews']]
+product_batch.to_sql(name='product_batch_df', con=engine, if_exists='replace', index=False)
+result_employee = df[['id','product_id']]
+result_employee.to_sql(name='result_employee_df', con=engine, if_exists='replace', index=False)
+up_department = df[['id','product_id','items_customers_buy_after_viewing_this_item']]
+up_department.to_sql(name='up_department_df', con=engine, if_exists='replace', index=False)
+user1 = df[['id',"customers_who_bought_this_item_also_bought" ]]
+user1.to_sql(name='user1_df', con=engine, if_exists='replace', index=False)
+workshop = df[['id','inventory','number_of_reviews',]]
+workshop.to_sql(name='workshop_df', con=engine, if_exists='replace', index=False)
+   
+   
+   
